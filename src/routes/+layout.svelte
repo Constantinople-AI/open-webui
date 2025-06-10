@@ -35,6 +35,7 @@
 
 	import { executeToolServer, getBackendConfig } from '$lib/apis';
 	import { getSessionUser, userSignOut } from '$lib/apis/auths';
+	import { setupAuthInterceptor, manualRefresh } from '$lib/utils/auth-interceptor';
 
 	import '../tailwind.css';
 	import '../app.css';
@@ -454,7 +455,7 @@
 		}
 	};
 
-	const TOKEN_EXPIRY_BUFFER = 60; // seconds
+	const TOKEN_EXPIRY_BUFFER = 10; // seconds (reduced for testing 30s JWT)
 	const checkTokenExpiry = async () => {
 		const exp = $user?.expires_at; // token expiry time in unix timestamp
 		const now = Math.floor(Date.now() / 1000); // current time in unix timestamp
@@ -465,6 +466,20 @@
 		}
 
 		if (now >= exp - TOKEN_EXPIRY_BUFFER) {
+			try {
+				// Try to refresh the token proactively
+				console.log('Token expiring soon, attempting proactive refresh...');
+				const newToken = await manualRefresh();
+				
+				if (newToken) {
+					console.log('Token proactively refreshed successfully');
+					return; // Successfully refreshed, no need to sign out
+				}
+			} catch (refreshError) {
+				console.error('Proactive token refresh failed:', refreshError);
+			}
+
+			// If refresh failed, proceed with sign out
 			const res = await userSignOut();
 			user.set(null);
 			localStorage.removeItem('token');
@@ -477,6 +492,22 @@
 		if (typeof window !== 'undefined' && window.applyTheme) {
 			window.applyTheme();
 		}
+
+		// Setup OAuth refresh interceptor for all API requests
+		setupAuthInterceptor();
+
+		// Global function to update user token from the interceptor
+		window.updateUserToken = (newToken, expiresAt) => {
+			const currentUser = $user;
+			if (currentUser) {
+				const updatedUser = {
+					...currentUser,
+					token: newToken,
+					expires_at: expiresAt
+				};
+				user.set(updatedUser);
+			}
+		};
 
 		if (window?.electronAPI) {
 			const info = await window.electronAPI.send({

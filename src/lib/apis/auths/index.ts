@@ -695,3 +695,30 @@ export const deleteAPIKey = async (token: string) => {
 	}
 	return res;
 };
+
+export const refreshOAuthToken = async () => {
+	let error = null;
+
+	const res = await fetch(`${WEBUI_API_BASE_URL}/oauth/refresh`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		credentials: 'include'
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.error('OAuth refresh failed:', err);
+			error = err.detail || err.message || 'Failed to refresh OAuth token';
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+};
