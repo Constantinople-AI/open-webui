@@ -350,7 +350,7 @@ MICROSOFT_CLIENT_TENANT_ID = PersistentConfig(
 MICROSOFT_OAUTH_SCOPE = PersistentConfig(
     "MICROSOFT_OAUTH_SCOPE",
     "oauth.microsoft.scope",
-    os.environ.get("MICROSOFT_OAUTH_SCOPE", "openid email profile"),
+    os.environ.get("MICROSOFT_OAUTH_SCOPE", "openid email profile offline_access"),
 )
 
 MICROSOFT_REDIRECT_URI = PersistentConfig(
@@ -548,11 +548,30 @@ def load_oauth_providers():
                 },
                 redirect_uri=MICROSOFT_REDIRECT_URI.value,
             )
+# TODO OCF: Use authlib correctly to refresh tokens
+        async def microsoft_refresh_handler(client, refresh_token):
+            """Refresh Microsoft OAuth tokens"""
+            token_url = f"https://login.microsoftonline.com/{MICROSOFT_CLIENT_TENANT_ID}/oauth2/v2.0/token"
+            data = {
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": MICROSOFT_CLIENT_ID,
+                "client_secret": MICROSOFT_CLIENT_SECRET,
+            }
+            
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.post(token_url, data=data) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        raise Exception(f"Token refresh failed: {response.status}")
 
         OAUTH_PROVIDERS["microsoft"] = {
             "redirect_uri": MICROSOFT_REDIRECT_URI.value,
             "picture_url": "https://graph.microsoft.com/v1.0/me/photo/$value",
             "register": microsoft_oauth_register,
+            "refresh_handler": microsoft_refresh_handler,
         }
 
     if GITHUB_CLIENT_ID.value and GITHUB_CLIENT_SECRET.value:

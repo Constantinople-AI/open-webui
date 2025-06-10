@@ -47,7 +47,7 @@ from open_webui.env import (
     WEBUI_AUTH_COOKIE_SECURE,
 )
 from open_webui.utils.misc import parse_duration
-from open_webui.utils.auth import get_password_hash, create_token
+from open_webui.utils.auth import get_password_hash, create_token, encrypt_refresh_token, decrypt_refresh_token
 from open_webui.utils.webhook import post_webhook
 
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL
@@ -448,6 +448,12 @@ class OAuthManager:
                         )
                         log.debug(f"Updated profile picture for user {user.email}")
 
+            # Store refresh token if available
+            refresh_token = token.get("refresh_token")
+            if refresh_token:
+                encrypted_refresh_token = encrypt_refresh_token(refresh_token)
+                Users.update_user_oauth_refresh_token_by_id(user.id, encrypted_refresh_token, provider)
+
         if not user:
             user_count = Users.get_num_users()
 
@@ -488,6 +494,12 @@ class OAuthManager:
                     role=role,
                     oauth_sub=provider_sub,
                 )
+
+                # Store refresh token if available
+                refresh_token = token.get("refresh_token")
+                if refresh_token:
+                    encrypted_refresh_token = encrypt_refresh_token(refresh_token)
+                    Users.update_user_oauth_refresh_token_by_id(user.id, encrypted_refresh_token, provider)
 
                 if auth_manager_config.WEBHOOK_URL:
                     post_webhook(
@@ -543,3 +555,106 @@ class OAuthManager:
         redirect_url = f"{redirect_base_url}/auth#token={jwt_token}"
 
         return RedirectResponse(url=redirect_url, headers=response.headers)
+
+# TODO OCF: Tidy this up
+    async def handle_refresh(self, request, response):
+        """Handle OAuth token refresh using stored refresh token"""
+        try:
+            # Get user from Authorization header or cookie (allow expired tokens for refresh)
+            user = None
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                from open_webui.utils.auth import decode_token
+                import jwt
+                token = auth_header[7:]
+                try:
+                    # Try to decode normally first
+                    data = decode_token(token)
+                    if data and "id" in data:
+                        user = Users.get_user_by_id(data["id"])
+                except:
+                    # If normal decode fails, try with verify_exp=False to handle expired tokens
+                    try:
+                        data = jwt.decode(token, options={"verify_signature": True, "verify_exp": False})
+                        if data and "id" in data:
+                            user = Users.get_user_by_id(data["id"])
+                    except:
+                        pass
+            
+            if not user and "token" in request.cookies:
+                from open_webui.utils.auth import decode_token
+                import jwt
+                try:
+                    # Try to decode normally first
+                    data = decode_token(request.cookies["token"])
+                    if data and "id" in data:
+                        user = Users.get_user_by_id(data["id"])
+                except:
+                    # If normal decode fails, try with verify_exp=False to handle expired tokens
+                    try:
+                        data = jwt.decode(request.cookies["token"], options={"verify_signature": True, "verify_exp": False})
+                        if data and "id" in data:
+                            user = Users.get_user_by_id(data["id"])
+                    except:
+                        pass
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="User not authenticated")
+            
+            if not user.oauth_refresh_token or not user.oauth_provider:
+                raise HTTPException(status_code=400, detail="No refresh token available")
+            
+            # Get provider config
+            if user.oauth_provider not in OAUTH_PROVIDERS:
+                raise HTTPException(status_code=400, detail="OAuth provider not configured")
+            
+            provider_config = OAUTH_PROVIDERS[user.oauth_provider]
+            refresh_handler = provider_config.get("refresh_handler")
+            
+            if not refresh_handler:
+                raise HTTPException(status_code=400, detail="Token refresh not supported")
+            
+            # Decrypt stored refresh token
+            refresh_token = decrypt_refresh_token(user.oauth_refresh_token)
+            print(f"DEBUG: Using stored refresh token: {len(refresh_token) if refresh_token else 0} characters")
+            
+            # Get OAuth client and refresh tokens
+            client = self.get_client(user.oauth_provider)
+            new_tokens = await refresh_handler(client, refresh_token)
+            print(f"DEBUG: Refresh response keys: {list(new_tokens.keys())}")
+            
+            # Always update stored refresh token if a new one was provided (Microsoft rotates tokens)
+            if new_tokens.get("refresh_token"):
+                encrypted_new_refresh_token = encrypt_refresh_token(new_tokens["refresh_token"])
+                Users.update_user_oauth_refresh_token_by_id(user.id, encrypted_new_refresh_token, user.oauth_provider)
+                print(f"DEBUG: Updated refresh token: {len(new_tokens['refresh_token'])} characters")
+            
+            # Create new JWT session token
+            expires_delta = parse_duration(auth_manager_config.JWT_EXPIRES_IN)
+            new_jwt_token = create_token(
+                data={"id": user.id},
+                expires_delta=expires_delta,
+            )
+            
+            # Calculate expiration timestamp
+            from datetime import datetime, UTC
+            if expires_delta:
+                expires_at = int((datetime.now(UTC) + expires_delta).timestamp())
+            else:
+                expires_at = None
+            
+            # Update cookie
+            response.set_cookie(
+                key="token",
+                value=new_jwt_token,
+                httponly=True,
+                samesite=WEBUI_AUTH_COOKIE_SAME_SITE,
+                secure=WEBUI_AUTH_COOKIE_SECURE,
+            )
+            
+            return {"success": True, "token": new_jwt_token, "expires_at": expires_at}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

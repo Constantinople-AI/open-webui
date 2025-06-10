@@ -1571,6 +1571,11 @@ async def oauth_callback(provider: str, request: Request, response: Response):
     return await oauth_manager.handle_callback(request, provider, response)
 
 
+@app.post("/oauth/refresh")
+async def oauth_refresh(request: Request, response: Response):
+    return await oauth_manager.handle_refresh(request, response)
+
+
 @app.get("/manifest.json")
 async def get_manifest_json():
     if app.state.EXTERNAL_PWA_MANIFEST_URL:

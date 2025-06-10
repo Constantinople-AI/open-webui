@@ -36,6 +36,8 @@ class User(Base):
     info = Column(JSONField, nullable=True)
 
     oauth_sub = Column(Text, unique=True)
+    oauth_refresh_token = Column(Text, nullable=True)  # Store encrypted refresh token
+    oauth_provider = Column(String, nullable=True)  # Store the OAuth provider name
 
 
 class UserSettings(BaseModel):
@@ -60,6 +62,8 @@ class UserModel(BaseModel):
     info: Optional[dict] = None
 
     oauth_sub: Optional[str] = None
+    oauth_refresh_token: Optional[str] = None
+    oauth_provider: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -110,6 +114,8 @@ class UsersTable:
         profile_image_url: str = "/user.png",
         role: str = "pending",
         oauth_sub: Optional[str] = None,
+        oauth_refresh_token: Optional[str] = None,
+        oauth_provider: Optional[str] = None,
     ) -> Optional[UserModel]:
         with get_db() as db:
             user = UserModel(
@@ -123,6 +129,8 @@ class UsersTable:
                     "created_at": int(time.time()),
                     "updated_at": int(time.time()),
                     "oauth_sub": oauth_sub,
+                    "oauth_refresh_token": oauth_refresh_token,
+                    "oauth_provider": oauth_provider,
                 }
             )
             result = User(**user.model_dump())
@@ -317,6 +325,38 @@ class UsersTable:
 
                 user = db.query(User).filter_by(id=id).first()
                 return UserModel.model_validate(user)
+        except Exception:
+            return None
+
+# TODO OCF: Tidy up
+    def update_user_oauth_refresh_token_by_id(
+        self, id: str, oauth_refresh_token: Optional[str], oauth_provider: Optional[str] = None
+    ) -> Optional[UserModel]:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Updating OAuth refresh token for user ID: {id}, provider: {oauth_provider}")
+        logger.debug(f"Token provided: {'yes' if oauth_refresh_token else 'no'}")
+        
+        try:
+            with get_db() as db:
+                update_data = {"oauth_refresh_token": oauth_refresh_token}
+                if oauth_provider is not None:
+                    update_data["oauth_provider"] = oauth_provider
+                db.query(User).filter_by(id=id).update(update_data)
+                db.commit()
+                user = db.query(User).filter_by(id=id).first()
+                logger.info(f"Updated {user} with OAuth refresh token")
+                return UserModel.model_validate(user)
+        except Exception as e:
+            logger.error(f"Failed to update OAuth refresh token for user {id}: {e}")
+            return None
+
+    def get_user_oauth_refresh_token_by_id(self, id: str) -> Optional[str]:
+        try:
+            with get_db() as db:
+                user = db.query(User).filter_by(id=id).first()
+                return user.oauth_refresh_token
         except Exception:
             return None
 

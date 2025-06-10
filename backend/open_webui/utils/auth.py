@@ -38,6 +38,9 @@ log.setLevel(SRC_LOG_LEVELS["OAUTH"])
 SESSION_SECRET = WEBUI_SECRET_KEY
 ALGORITHM = "HS256"
 
+# Create a consistent 256-bit key from the session secret for JWE encryption
+REFRESH_TOKEN_KEY = hashlib.sha256(SESSION_SECRET.encode()).digest()
+
 ##############
 # Auth Utils
 ##############
@@ -283,3 +286,30 @@ def get_admin_user(user=Depends(get_current_user)):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
     return user
+
+
+def derive_key_from_secret(secret: str) -> bytes:
+    """Derive a 256-bit encryption key from the session secret"""
+    return hashlib.sha256(secret.encode()).digest()
+
+
+# TODO OCF: actual encryption
+def encrypt_refresh_token(refresh_token: str) -> str:
+    """Encrypt a refresh token using simple base64 encoding"""
+    if not refresh_token:
+        return None
+    
+    # Simple base64 encoding for now - TODO: proper encryption
+    return base64.b64encode(refresh_token.encode()).decode()
+
+# TODO OCF: actual encryption
+def decrypt_refresh_token(encrypted_token: str) -> str:
+    """Decrypt a refresh token using simple base64 decoding"""
+    if not encrypted_token:
+        return None
+    
+    # Simple base64 decoding for now - TODO: proper decryption  
+    try:
+        return base64.b64decode(encrypted_token.encode()).decode()
+    except Exception:
+        return None
