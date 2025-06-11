@@ -784,6 +784,34 @@ async def generate_chat_completion(
     if "max_tokens" in payload and "max_completion_tokens" in payload:
         del payload["max_tokens"]
 
+    # Fix empty tool call arguments before sending to bedrock-gateway
+    log.debug(f"🐞 DEBUG: Checking payload for empty tool call arguments before sending to external API")
+    if "messages" in payload:
+        log.debug(f"🐞 DEBUG: Found {len(payload['messages'])} messages in payload")
+        for i, message in enumerate(payload["messages"]):
+            if isinstance(message, dict) and "tool_calls" in message:
+                log.debug(f"🐞 DEBUG: Message {i} has tool_calls: {len(message['tool_calls'])} tools")
+                for j, tool_call in enumerate(message["tool_calls"]):
+                    if isinstance(tool_call, dict) and "function" in tool_call:
+                        function = tool_call["function"]
+                        if isinstance(function, dict) and "arguments" in function:
+                            arguments = function["arguments"]
+                            log.debug(f"🐞 DEBUG: Tool {j} '{function.get('name', 'unknown')}' has arguments: '{arguments}' (type: {type(arguments)}, length: {len(arguments) if arguments else 0})")
+                            # Fix empty arguments that would cause JSON parsing errors
+                            if arguments == "" or arguments == '""':
+                                log.debug(f"🐞 DEBUG: Fixed empty arguments for tool {function.get('name', 'unknown')}: '{arguments}' -> '{{}}'")
+                                function["arguments"] = "{}"
+                            else:
+                                log.debug(f"🐞 DEBUG: Tool arguments are valid, no fix needed")
+                        else:
+                            log.debug(f"🐞 DEBUG: Tool {j} function missing arguments field or not dict")
+                    else:
+                        log.debug(f"🐞 DEBUG: Tool {j} missing function field or not dict")
+            else:
+                log.debug(f"🐞 DEBUG: Message {i} has no tool_calls or is not dict")
+    else:
+        log.debug(f"🐞 DEBUG: No messages found in payload")
+
     # Convert the modified body back to JSON
     if "logit_bias" in payload:
         payload["logit_bias"] = json.loads(

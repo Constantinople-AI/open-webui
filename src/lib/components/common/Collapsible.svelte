@@ -59,16 +59,55 @@
 	const collapsibleId = uuidv4();
 
 	function parseJSONString(str) {
+		console.log('🐛 DEBUG parseJSONString called with:', { str, type: typeof str, length: str?.length });
+		
+		// Handle empty strings and null/undefined before JSON parsing
+		if (str === '' || str === null || str === undefined) {
+			console.log('🐛 DEBUG parseJSONString: empty/null/undefined detected, returning as-is');
+			return str;
+		}
+		
+		// Handle non-string types (already parsed)
+		if (typeof str !== 'string') {
+			console.log('🐛 DEBUG parseJSONString: non-string type, returning as-is');
+			return str;
+		}
+		
 		try {
-			return parseJSONString(JSON.parse(str));
+			const parsed = JSON.parse(str);
+			console.log('🐛 DEBUG parseJSONString JSON.parse success:', { parsed });
+			return parseJSONString(parsed);
 		} catch (e) {
+			console.log('🐛 DEBUG parseJSONString JSON.parse failed, returning original:', { str, error: e.message });
 			return str;
 		}
 	}
 
 	function formatJSONString(str) {
+		console.log('🐛 DEBUG formatJSONString called with:', { str, type: typeof str, length: str?.length });
+		
+		// Handle empty strings specifically - return "(no arguments)" for better UX
+		if (str === '' || str === null || str === undefined) {
+			console.log('🐛 DEBUG formatJSONString: empty string detected, returning no arguments placeholder');
+			return '(no arguments)';
+		}
+		
+		// Handle the specific case of '""' (literal two quote characters)
+		if (str === '""') {
+			console.log('🐛 DEBUG formatJSONString: empty quotes detected, returning no arguments placeholder');
+			return '(no arguments)';
+		}
+		
+		// Handle whitespace-only strings
+		if (typeof str === 'string' && str.trim() === '') {
+			console.log('🐛 DEBUG formatJSONString: whitespace-only string detected');
+			return '(no arguments)';
+		}
+		
 		try {
 			const parsed = parseJSONString(str);
+			console.log('🐛 DEBUG formatJSONString parsed:', { parsed, type: typeof parsed });
+			
 			// If parsed is an object/array, then it's valid JSON
 			if (typeof parsed === 'object') {
 				return JSON.stringify(parsed, null, 2);
@@ -77,8 +116,9 @@
 				return `${JSON.stringify(String(parsed))}`;
 			}
 		} catch (e) {
-			// Not valid JSON, return as-is
-			return str;
+			console.error('🐛 DEBUG formatJSONString error:', e);
+			// Not valid JSON, return as-is but wrapped in quotes if it's a string
+			return typeof str === 'string' ? `"${str}"` : str;
 		}
 	}
 </script>
@@ -205,6 +245,13 @@
 		{@const args = decode(attributes?.arguments)}
 		{@const result = decode(attributes?.result ?? '')}
 		{@const files = parseJSONString(decode(attributes?.files ?? ''))}
+		{console.log('🐛 DEBUG tool_calls rendering:', { 
+			rawArguments: attributes?.arguments, 
+			decodedArgs: args, 
+			rawResult: attributes?.result,
+			decodedResult: result,
+			toolName: attributes?.name
+		})}
 
 		{#if !grow}
 			{#if open && !hide}

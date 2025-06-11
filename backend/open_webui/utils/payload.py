@@ -165,14 +165,23 @@ def convert_messages_openai_to_ollama(messages: list[dict]) -> list[dict]:
             # If tool calls are present, add them to the message
             ollama_tool_calls = []
             for tool_call in tool_calls:
+                # Handle empty arguments from MCP tools
+                arguments_str = tool_call.get("function", {}).get("arguments", {})
+                if arguments_str == "" or arguments_str == '""':
+                    parsed_arguments = {}
+                else:
+                    try:
+                        parsed_arguments = json.loads(arguments_str)
+                    except json.JSONDecodeError:
+                        # Fallback to empty dict if JSON parsing fails
+                        parsed_arguments = {}
+                
                 ollama_tool_call = {
                     "index": tool_call.get("index", 0),
                     "id": tool_call.get("id", None),
                     "function": {
                         "name": tool_call.get("function", {}).get("name", ""),
-                        "arguments": json.loads(
-                            tool_call.get("function", {}).get("arguments", {})
-                        ),
+                        "arguments": parsed_arguments,
                     },
                 }
                 ollama_tool_calls.append(ollama_tool_call)

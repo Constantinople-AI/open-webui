@@ -5,6 +5,8 @@ from open_webui.utils.misc import (
     openai_chat_completion_message_template,
 )
 
+from open_webui.config import log
+
 
 def convert_ollama_tool_call_to_openai(tool_calls: dict) -> dict:
     openai_tool_calls = []
@@ -101,7 +103,18 @@ def convert_response_ollama_to_openai(ollama_response: dict) -> dict:
 
 async def convert_streaming_response_ollama_to_openai(ollama_streaming_response):
     async for data in ollama_streaming_response.body_iterator:
-        data = json.loads(data)
+        log.debug(f"🐛 DEBUG: convert_streaming_response_ollama_to_openai - data before parse: '{data}' (length: {len(data) if data else 0})")
+        
+        # Handle empty data chunks
+        if not data or data.strip() == "" or data.strip() == '""':
+            log.debug(f"🐛 DEBUG: Empty streaming data in response.py, skipping")
+            continue
+            
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError as e:
+            log.error(f"🐛 DEBUG: JSON decode error in response.py: {e}, data: '{data}'")
+            continue
 
         model = data.get("model", "ollama")
         message_content = data.get("message", {}).get("content", None)
