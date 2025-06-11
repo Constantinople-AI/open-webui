@@ -1684,13 +1684,6 @@ async def process_chat_response(
                         data = data[len("data:") :].strip()
 
                         try:
-                            log.debug(f"🐛 DEBUG: Stream JSON parsing - data before parse: '{data}' (length: {len(data)})")
-                            
-                            # Handle empty JSON strings in streaming data
-                            if data.strip() == "" or data.strip() == '""':
-                                log.debug(f"🐛 DEBUG: Empty streaming data detected, skipping JSON parse")
-                                continue
-                                
                             data = json.loads(data)
 
                             data, _ = await process_filter_functions(
@@ -1987,41 +1980,37 @@ async def process_chat_response(
                     tools = metadata.get("tools", {})
 
                     results = []
+
                     for tool_call in response_tool_calls:
                         tool_call_id = tool_call.get("id", "")
                         tool_name = tool_call.get("function", {}).get("name", "")
+                        tool_call_args = tool_call.get("function", {}).get("arguments", "{}")
 
                         tool_function_params = {}
                         try:
-                            log.debug(f"OSIJSKLA Jezzz trying to get args")
-                            # Get the arguments string, handle empty arguments for MCP tools
-                            arguments_str = tool_call.get("function", {}).get("arguments", "{}")
-                            
-                            # Handle empty strings and empty quotes from MCP tools
-                            if arguments_str == "" or arguments_str == '""':
-                                log.debug(f"🐛 DEBUG: Empty arguments detected for tool {tool_name}, using empty dict")
-                                tool_function_params = {}
-                            else:
-                                # json.loads cannot be used because some models do not produce valid JSON
-                                tool_function_params = ast.literal_eval(arguments_str)
+                            # json.loads cannot be used because some models do not produce valid JSON
+                            tool_function_params = ast.literal_eval(
+                                tool_call_args
+                            )
                         except Exception as e:
-                            log.debug(f"🐛 DEBUG: ast.literal_eval failed for arguments '{arguments_str}': {e}")
+                            log.debug(e)
                             # Fallback to JSON parsing
                             try:
-                                arguments_str = tool_call.get("function", {}).get("arguments", "{}")
-                                
-                                # Handle empty strings and empty quotes from MCP tools
-                                if arguments_str == "" or arguments_str == '""':
-                                    log.debug(f"🐛 DEBUG: Empty arguments in fallback for tool {tool_name}, using empty dict")
-                                    log.debug(f"XKZUJHAKSDJHA Empty arguments in fallback for tool {tool_name}, using empty dict")
-                                    tool_function_params = {}
-                                else:
-                                    tool_function_params = json.loads(arguments_str)
+                                tool_function_params = json.loads(
+                                    tool_call_args
+                                )
                             except Exception as e:
                                 log.error(
-                                    f"🐛 DEBUG: Both parsing methods failed for tool call arguments: {tool_call.get('function', {}).get('arguments', '{}')}, error: {e}"
+                                    f"Error parsing tool call arguments: {tool_call_args}"
                                 )
-                                tool_function_params = {}
+
+                        # Mutate the original tool call response params as they are passed back to the passed
+                        # back to the LLM via the content blocks. If they are in a json block and are invalid json, 
+                        # this can cause downstream LLM integrations to fail (e.g. bedrock gateway) where response
+                        # params are not valid json.
+                        # Main case so far is no args = "" = invalid json.
+                        log.debug(f"Parsed args from {tool_call_args} to {tool_function_params}")
+                        tool_call.setdefault("function", {})["arguments"] = json.dumps(tool_function_params)
 
                         tool_result = None
 

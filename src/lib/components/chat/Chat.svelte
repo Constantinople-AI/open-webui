@@ -1164,11 +1164,9 @@
 	};
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		console.log('🐛 DEBUG chatCompletionEventHandler called with:', { data, messageId: message?.id });
 		const { id, done, choices, content, sources, selected_model_id, error, usage } = data;
 
 		if (error) {
-			console.log('🐛 DEBUG chatCompletionEventHandler error detected:', error);
 			await handleOpenAIError(error, message);
 		}
 
@@ -1731,7 +1729,6 @@
 	};
 
 	const handleOpenAIError = async (error, responseMessage) => {
-		console.log('🐛 DEBUG handleOpenAIError called with error:', error);
 		let errorMessage = '';
 		let innerError;
 
@@ -1739,7 +1736,7 @@
 			innerError = error;
 		}
 
-		console.error('🐛 DEBUG handleOpenAIError innerError:', innerError);
+		console.error(innerError);
 		if ('detail' in innerError) {
 			// FastAPI error
 			toast.error(innerError.detail);

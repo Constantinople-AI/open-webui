@@ -23,7 +23,6 @@ ARG GID=0
 ######## WebUI frontend ########
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
 ARG BUILD_HASH
-ARG NODE_OPTIONS=--max-old-space-size=4096
 
 WORKDIR /app
 
@@ -35,7 +34,6 @@ RUN npm ci
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
-ENV NODE_OPTIONS=${NODE_OPTIONS}
 RUN npm run build
 
 ######## WebUI backend ########

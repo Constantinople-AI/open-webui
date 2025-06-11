@@ -367,20 +367,20 @@
 				return textArea.value;
 			};
 
-		try {
-			// Unescape the HTML-encoded string
-			const unescapedOutput = unescapeHtml(attributes.output);
+			try {
+				// Unescape the HTML-encoded string
+				const unescapedOutput = unescapeHtml(attributes.output);
 
-			// Parse the unescaped string into JSON
-			const output = JSON.parse(unescapedOutput);
+				// Parse the unescaped string into JSON
+				const output = JSON.parse(unescapedOutput);
 
-			// Assign the parsed values to variables
-			stdout = output.stdout;
-			stderr = output.stderr;
-			result = output.result;
-		} catch (error) {
-			console.error('Error:', error);
-		}
+				// Assign the parsed values to variables
+				stdout = output.stdout;
+				stderr = output.stderr;
+				result = output.result;
+			} catch (error) {
+				console.error('Error:', error);
+			}
 		}
 	};
 
