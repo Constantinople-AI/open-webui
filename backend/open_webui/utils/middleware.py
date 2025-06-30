@@ -1493,7 +1493,7 @@ async def process_chat_response(
                         messages.append(
                             {
                                 "role": "assistant",
-                                "content": serialize_content_blocks(temp_blocks),
+                                "content": temp_blocks,
                                 "tool_calls": block.get("content"),
                             }
                         )
@@ -1509,19 +1509,30 @@ async def process_chat_response(
                                 }
                             )
                         temp_blocks = []
+                    elif block["type"] == "reasoning":
+                        temp_blocks.append({
+                            "reasoningContent": {
+                                "reasoningText": {
+                                    "text": block["content"]
+                                }
+                            }
+                        })
+                    elif block["type"] == "text":
+                        temp_blocks.append({"text": block["content"]})
                     else:
+                        # For any other supported types, pass through as-is (if needed, extend here)
                         temp_blocks.append(block)
 
                 if temp_blocks:
-                    content = serialize_content_blocks(temp_blocks)
-                    if content:
-                        messages.append(
-                            {
-                                "role": "assistant",
-                                "content": content,
-                            }
-                        )
-
+                    # Move all reasoningContent blocks to the front, preserving order
+                    reasoning_blocks = [b for b in temp_blocks if "reasoningContent" in b]
+                    other_blocks = [b for b in temp_blocks if "reasoningContent" not in b]
+                    if reasoning_blocks:
+                        temp_blocks = reasoning_blocks + other_blocks
+                    messages.append({
+                        "role": "assistant",
+                        "content": temp_blocks,
+                    })
                 return messages
 
             def tag_content_handler(content_type, tags, content, content_blocks):
