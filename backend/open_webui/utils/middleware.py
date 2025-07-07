@@ -946,7 +946,6 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                         + f">{doc_context}</source>\n"
                     )
 
-
         context_string = context_string.strip()
         prompt = get_last_user_message(form_data["messages"])
 
