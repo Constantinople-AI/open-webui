@@ -1329,6 +1329,22 @@ async def chat_completion(
             request.state.direct = True
             request.state.model = model
 
+        # Determine function calling mode with clear precedence
+        function_calling = None
+        
+        # 1. User's explicit choice (highest priority)
+        user_function_calling = form_data.get("params", {}).get("function_calling")
+        if user_function_calling in ["native", "compatible"]:
+            function_calling = user_function_calling
+        
+        # 2. Model-specific config (medium priority)
+        elif model_info and model_info.params.model_dump().get("function_calling") == "native":
+            function_calling = "native"
+        
+        # 3. System default (lowest priority)
+        elif DEFAULT_FUNCTION_CALLING:
+            function_calling = DEFAULT_FUNCTION_CALLING
+        
         metadata = {
             "user_id": user.id,
             "chat_id": form_data.pop("chat_id", None),
@@ -1342,19 +1358,7 @@ async def chat_completion(
             "variables": form_data.get("variables", {}),
             "model": model,
             "direct": model_item.get("direct", False),
-            **(
-                {"function_calling": form_data.get("params", {}).get("function_calling")}
-                if form_data.get("params", {}).get("function_calling") in ["native", "compatible"]
-                else (
-                    {"function_calling": "native"}
-                    if (
-                        model_info
-                        and model_info.params.model_dump().get("function_calling")
-                        == "native"
-                    )
-                    else {}
-                )
-            ),
+            **({"function_calling": function_calling} if function_calling else {}),
         }
 
         request.state.metadata = metadata
