@@ -15,7 +15,7 @@
 	const defaultParams = {
 		// Advanced
 		stream_response: null, // Set stream responses for this model individually
-		function_calling: null,
+		function_calling: null as string | null,
 		seed: null,
 		stop: null,
 		temperature: null,
@@ -91,7 +91,7 @@
 	<div>
 		<Tooltip
 			content={$i18n.t(
-				"Default mode works with a wider range of models by calling tools once before execution. Native mode leverages the model's built-in tool-calling capabilities, but requires the model to inherently support this feature."
+				"Default mode is an overridable developer setting, while Compatible mode works with a wider range of models by calling tools once before execution. Native mode leverages the model's built-in tool-calling capabilities, but requires the model to inherently support this feature."
 			)}
 			placement="top-start"
 			className="inline-tooltip"
@@ -103,12 +103,21 @@
 				<button
 					class="p-1 px-3 text-xs flex rounded-sm transition"
 					on:click={() => {
-						params.function_calling = (params?.function_calling ?? null) === null ? 'native' : null;
+						// Cycle through: null -> 'native' -> 'compatible' -> null
+						if (params.function_calling === null || params.function_calling === undefined) {
+							params.function_calling = 'native';
+						} else if (params.function_calling === 'native') {
+							params.function_calling = 'compatible';
+						} else {
+							params.function_calling = null;
+						}
 					}}
 					type="button"
 				>
 					{#if params.function_calling === 'native'}
 						<span class="ml-2 self-center">{$i18n.t('Native')}</span>
+					{:else if params.function_calling === 'compatible'}
+						<span class="ml-2 self-center">{$i18n.t('Compatible')}</span>
 					{:else}
 						<span class="ml-2 self-center">{$i18n.t('Default')}</span>
 					{/if}

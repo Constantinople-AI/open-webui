@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 import logging
 import re
+import os
 
 from open_webui.utils.chat import generate_chat_completion
 from open_webui.utils.task import (
@@ -68,6 +69,7 @@ async def get_task_config(request: Request, user=Depends(get_verified_user)):
         "ENABLE_RETRIEVAL_QUERY_GENERATION": request.app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION,
         "QUERY_GENERATION_PROMPT_TEMPLATE": request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE,
         "TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE": request.app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
+        "DEFAULT_FUNCTION_CALLING": request.app.state.config.DEFAULT_FUNCTION_CALLING,
     }
 
 
@@ -87,7 +89,7 @@ class TaskConfigForm(BaseModel):
     ENABLE_RETRIEVAL_QUERY_GENERATION: bool
     QUERY_GENERATION_PROMPT_TEMPLATE: str
     TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE: str
-
+    DEFAULT_FUNCTION_CALLING: Optional[str] = None
 
 @router.post("/config/update")
 async def update_task_config(
@@ -136,6 +138,13 @@ async def update_task_config(
         form_data.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE
     )
 
+    if form_data.DEFAULT_FUNCTION_CALLING is not None:
+        request.app.state.config.DEFAULT_FUNCTION_CALLING = (
+            form_data.DEFAULT_FUNCTION_CALLING
+        )
+    else:
+        request.app.state.config.DEFAULT_FUNCTION_CALLING = os.environ.get("DEFAULT_FUNCTION_CALLING", None)
+
     return {
         "TASK_MODEL": request.app.state.config.TASK_MODEL,
         "TASK_MODEL_EXTERNAL": request.app.state.config.TASK_MODEL_EXTERNAL,
@@ -152,6 +161,7 @@ async def update_task_config(
         "ENABLE_RETRIEVAL_QUERY_GENERATION": request.app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION,
         "QUERY_GENERATION_PROMPT_TEMPLATE": request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE,
         "TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE": request.app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
+        "DEFAULT_FUNCTION_CALLING": request.app.state.config.DEFAULT_FUNCTION_CALLING,
     }
 
 

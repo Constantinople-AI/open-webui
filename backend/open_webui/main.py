@@ -390,6 +390,7 @@ from open_webui.config import (
     AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH,
     AppConfig,
     reset_config,
+    DEFAULT_FUNCTION_CALLING,
 )
 from open_webui.env import (
     AUDIT_EXCLUDED_PATHS,
@@ -1041,6 +1042,8 @@ app.state.config.AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH = (
     AUTOCOMPLETE_GENERATION_INPUT_MAX_LENGTH
 )
 
+app.state.config.DEFAULT_FUNCTION_CALLING = DEFAULT_FUNCTION_CALLING
+
 
 ########################################
 #
@@ -1340,14 +1343,17 @@ async def chat_completion(
             "model": model,
             "direct": model_item.get("direct", False),
             **(
-                {"function_calling": "native"}
-                if form_data.get("params", {}).get("function_calling") == "native"
-                or (
-                    model_info
-                    and model_info.params.model_dump().get("function_calling")
-                    == "native"
+                {"function_calling": form_data.get("params", {}).get("function_calling")}
+                if form_data.get("params", {}).get("function_calling") in ["native", "compatible"]
+                else (
+                    {"function_calling": "native"}
+                    if (
+                        model_info
+                        and model_info.params.model_dump().get("function_calling")
+                        == "native"
+                    )
+                    else {}
                 )
-                else {}
             ),
         }
 
