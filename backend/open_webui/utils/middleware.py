@@ -927,19 +927,8 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                 {"type": "function", "function": tool.get("spec", {})}
                 for tool in tools_dict.values()
             ]
-        elif function_calling_mode == "compatible":
-            # Compatible mode - similar to default but with potential format adjustments
-            # This is a placeholder for future compatible mode implementation
-            # For now, it behaves like default mode
-            try:
-                form_data, flags = await chat_completion_tools_handler(
-                    request, form_data, extra_params, user, models, tools_dict
-                )
-                sources.extend(flags.get("sources", []))
-            except Exception as e:
-                log.exception(e)
         else:
-            # If the function calling is not native or compatible, then fallback to compatible mode
+            # Compatible mode: Use legacy tools handler
             try:
                 form_data, flags = await chat_completion_tools_handler(
                     request, form_data, extra_params, user, models, tools_dict
