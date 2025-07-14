@@ -898,40 +898,40 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                 }
 
     if tools_dict:
-        # Get the function calling mode - default from environment if not specified
+        # Determine function calling mode with fallback hierarchy
         function_calling_mode = metadata.get("function_calling")
+        
+        # Extract default mode from PersistentConfig if available
+        default_mode_config = request.app.state.config.DEFAULT_FUNCTION_CALLING
+        default_mode = getattr(default_mode_config, 'value', default_mode_config) if default_mode_config else ""
+        
         if function_calling_mode is None:
-            # Use the default from environment variable if not specified
-            default_mode = request.app.state.config.DEFAULT_FUNCTION_CALLING
-            if default_mode and default_mode in ["native", "compatible"]:
-                function_calling_mode = default_mode
+            # Use default mode if valid, otherwise fallback to compatible
+            if default_mode and str(default_mode) in ["native", "compatible"]:
+                function_calling_mode = str(default_mode)
+            else:
+                function_calling_mode = "compatible"
+        
+        # Ensure we have a string value
+        function_calling_mode = str(function_calling_mode) if function_calling_mode else "compatible"
+        
+        # Add to metadata for frontend display
+        metadata["default_function_calling"] = str(default_mode) if default_mode else ""
         
         if function_calling_mode == "native":
-            # If the function calling is native, then call the tools function calling handler
+            # Native mode: Pass tools directly to the model
             metadata["tools"] = tools_dict
             form_data["tools"] = [
                 {"type": "function", "function": tool.get("spec", {})}
                 for tool in tools_dict.values()
             ]
-        elif function_calling_mode == "compatible":
-            # Compatible mode - similar to default but with potential format adjustments
-            # This is a placeholder for future compatible mode implementation
-            # For now, it behaves like default mode
-            try:
-                form_data, flags = await chat_completion_tools_handler(
-                    request, form_data, extra_params, user, models, tools_dict
-                )
-                sources.extend(flags.get("sources", []))
-            except Exception as e:
-                log.exception(e)
         else:
-            # If the function calling is not native or compatible, then fallback to compatible mode
+            # Compatible mode: Use legacy tools handler
             try:
                 form_data, flags = await chat_completion_tools_handler(
                     request, form_data, extra_params, user, models, tools_dict
                 )
                 sources.extend(flags.get("sources", []))
-
             except Exception as e:
                 log.exception(e)
 

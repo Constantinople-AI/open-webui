@@ -91,7 +91,7 @@
 	<div>
 		<Tooltip
 			content={$i18n.t(
-				"Default mode is an overridable developer setting, while Compatible mode works with a wider range of models by calling tools once before execution. Native mode leverages the model's built-in tool-calling capabilities, but requires the model to inherently support this feature."
+				"Default mode is a developer-configurable setting that can be overriden. Native mode leverages the model's built-in tool-calling capabilities, but requires the model to inherently support this feature. Compatible mode works with a wider range of models by calling tools once before execution."
 			)}
 			placement="top-start"
 			className="inline-tooltip"

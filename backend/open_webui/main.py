@@ -1343,7 +1343,8 @@ async def chat_completion(
         
         # 3. System default (lowest priority)
         elif DEFAULT_FUNCTION_CALLING:
-            function_calling = DEFAULT_FUNCTION_CALLING
+            # Extract value from PersistentConfig object
+            function_calling = getattr(DEFAULT_FUNCTION_CALLING, 'value', DEFAULT_FUNCTION_CALLING)
         
         metadata = {
             "user_id": user.id,
