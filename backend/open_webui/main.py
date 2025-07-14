@@ -1331,21 +1331,26 @@ async def chat_completion(
 
         # Determine function calling mode with clear precedence
         function_calling = None
-        
+
         # 1. User's explicit choice (highest priority)
         user_function_calling = form_data.get("params", {}).get("function_calling")
         if user_function_calling in ["native", "compatible"]:
             function_calling = user_function_calling
-        
+
         # 2. Model-specific config (medium priority)
-        elif model_info and model_info.params.model_dump().get("function_calling") == "native":
+        elif (
+            model_info
+            and model_info.params.model_dump().get("function_calling") == "native"
+        ):
             function_calling = "native"
-        
+
         # 3. System default (lowest priority)
         elif DEFAULT_FUNCTION_CALLING:
             # Extract value from PersistentConfig object
-            function_calling = getattr(DEFAULT_FUNCTION_CALLING, 'value', DEFAULT_FUNCTION_CALLING)
-        
+            function_calling = getattr(
+                DEFAULT_FUNCTION_CALLING, "value", DEFAULT_FUNCTION_CALLING
+            )
+
         metadata = {
             "user_id": user.id,
             "chat_id": form_data.pop("chat_id", None),

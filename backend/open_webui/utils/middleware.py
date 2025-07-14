@@ -900,24 +900,30 @@ async def process_chat_payload(request, form_data, user, metadata, model):
     if tools_dict:
         # Determine function calling mode with fallback hierarchy
         function_calling_mode = metadata.get("function_calling")
-        
+
         # Extract default mode from PersistentConfig if available
         default_mode_config = request.app.state.config.DEFAULT_FUNCTION_CALLING
-        default_mode = getattr(default_mode_config, 'value', default_mode_config) if default_mode_config else ""
-        
+        default_mode = (
+            getattr(default_mode_config, "value", default_mode_config)
+            if default_mode_config
+            else ""
+        )
+
         if function_calling_mode is None:
             # Use default mode if valid, otherwise fallback to compatible
             if default_mode and str(default_mode) in ["native", "compatible"]:
                 function_calling_mode = str(default_mode)
             else:
                 function_calling_mode = "compatible"
-        
+
         # Ensure we have a string value
-        function_calling_mode = str(function_calling_mode) if function_calling_mode else "compatible"
-        
+        function_calling_mode = (
+            str(function_calling_mode) if function_calling_mode else "compatible"
+        )
+
         # Add to metadata for frontend display
         metadata["default_function_calling"] = str(default_mode) if default_mode else ""
-        
+
         if function_calling_mode == "native":
             # Native mode: Pass tools directly to the model
             metadata["tools"] = tools_dict

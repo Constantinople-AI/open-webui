@@ -91,6 +91,7 @@ class TaskConfigForm(BaseModel):
     TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE: str
     DEFAULT_FUNCTION_CALLING: Optional[str] = None
 
+
 @router.post("/config/update")
 async def update_task_config(
     request: Request, form_data: TaskConfigForm, user=Depends(get_admin_user)
@@ -143,7 +144,9 @@ async def update_task_config(
             form_data.DEFAULT_FUNCTION_CALLING
         )
     else:
-        request.app.state.config.DEFAULT_FUNCTION_CALLING = os.environ.get("DEFAULT_FUNCTION_CALLING", None)
+        request.app.state.config.DEFAULT_FUNCTION_CALLING = os.environ.get(
+            "DEFAULT_FUNCTION_CALLING", None
+        )
 
     return {
         "TASK_MODEL": request.app.state.config.TASK_MODEL,
