@@ -152,6 +152,7 @@ def upload_file(
                 }
             ),
         )
+        embed_duration = None
         if process:
             try:
                 if file.content_type:
@@ -170,20 +171,44 @@ def upload_file(
                         file_path = Storage.get_file(file_path)
                         result = transcribe(request, file_path, file_metadata)
 
-                        process_file(
+                        process_result = process_file(
                             request,
                             ProcessFileForm(file_id=id, content=result.get("text", "")),
                             user=user,
                         )
+                        embed_duration = (
+                            process_result.get("embed_duration")
+                            if process_result
+                            else None
+                        )
                     elif (not file.content_type.startswith(("image/", "video/"))) or (
                         request.app.state.config.CONTENT_EXTRACTION_ENGINE == "external"
                     ):
-                        process_file(request, ProcessFileForm(file_id=id), user=user)
+                        process_result = process_file(
+                            request, ProcessFileForm(file_id=id), user=user
+                        )
+                        embed_duration = (
+                            process_result.get("embed_duration")
+                            if process_result
+                            else None
+                        )
                 else:
                     log.info(
                         f"File type {file.content_type} is not provided, but trying to process anyway"
                     )
-                    process_file(request, ProcessFileForm(file_id=id), user=user)
+                    try:
+                        process_result = process_file(
+                            request, ProcessFileForm(file_id=id), user=user
+                        )
+                        embed_duration = (
+                            process_result.get("embed_duration")
+                            if process_result
+                            else None
+                        )
+                    except Exception as e:
+                        log.error(f"Exception in process_file: {e}")
+                        log.exception(e)
+                        embed_duration = None
 
                 file_item = Files.get_file_by_id(id=id)
             except Exception as e:
@@ -193,11 +218,16 @@ def upload_file(
                     **{
                         **file_item.model_dump(),
                         "error": str(e.detail) if hasattr(e, "detail") else str(e),
+                        "embed_duration": embed_duration,
                     }
                 )
 
         if file_item:
-            return file_item
+            # Add embed_duration to the response
+            response_data = file_item.model_dump()
+            response_data["embed_duration"] = embed_duration
+            response_model = FileModelResponse(**response_data)
+            return response_model
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
