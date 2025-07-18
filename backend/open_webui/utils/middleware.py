@@ -898,21 +898,42 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                 }
 
     if tools_dict:
-        if metadata.get("function_calling") == "native":
-            # If the function calling is native, then call the tools function calling handler
+        # Determine function calling mode with fallback hierarchy
+        function_calling_mode = metadata.get("function_calling")
+
+        # Extract default mode from PersistentConfig if available
+        default_mode_config = request.app.state.config.DEFAULT_FUNCTION_CALLING
+        default_mode = getattr(default_mode_config, "value", "")
+
+        if function_calling_mode is None:
+            # Use default mode if valid, otherwise fallback to compatible
+            if default_mode and str(default_mode) in ["native", "compatible"]:
+                function_calling_mode = str(default_mode)
+            else:
+                function_calling_mode = "compatible"
+
+        # Ensure we have a string value
+        function_calling_mode = (
+            str(function_calling_mode) if function_calling_mode else "compatible"
+        )
+
+        # Add to metadata for frontend display
+        metadata["default_function_calling"] = str(default_mode) if default_mode else ""
+
+        if function_calling_mode == "native":
+            # Native mode: Pass tools directly to the model
             metadata["tools"] = tools_dict
             form_data["tools"] = [
                 {"type": "function", "function": tool.get("spec", {})}
                 for tool in tools_dict.values()
             ]
         else:
-            # If the function calling is not native, then call the tools function calling handler
+            # Compatible mode: Use legacy tools handler
             try:
                 form_data, flags = await chat_completion_tools_handler(
                     request, form_data, extra_params, user, models, tools_dict
                 )
                 sources.extend(flags.get("sources", []))
-
             except Exception as e:
                 log.exception(e)
 
