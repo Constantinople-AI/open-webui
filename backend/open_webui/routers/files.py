@@ -176,19 +176,35 @@ def upload_file(
                             ProcessFileForm(file_id=id, content=result.get("text", "")),
                             user=user,
                         )
-                        embed_duration = process_result.get("embed_duration") if process_result else None
+                        embed_duration = (
+                            process_result.get("embed_duration")
+                            if process_result
+                            else None
+                        )
                     elif (not file.content_type.startswith(("image/", "video/"))) or (
                         request.app.state.config.CONTENT_EXTRACTION_ENGINE == "external"
                     ):
-                        process_result = process_file(request, ProcessFileForm(file_id=id), user=user)
-                        embed_duration = process_result.get("embed_duration") if process_result else None
+                        process_result = process_file(
+                            request, ProcessFileForm(file_id=id), user=user
+                        )
+                        embed_duration = (
+                            process_result.get("embed_duration")
+                            if process_result
+                            else None
+                        )
                 else:
                     log.info(
                         f"File type {file.content_type} is not provided, but trying to process anyway"
                     )
                     try:
-                        process_result = process_file(request, ProcessFileForm(file_id=id), user=user)
-                        embed_duration = process_result.get("embed_duration") if process_result else None
+                        process_result = process_file(
+                            request, ProcessFileForm(file_id=id), user=user
+                        )
+                        embed_duration = (
+                            process_result.get("embed_duration")
+                            if process_result
+                            else None
+                        )
                     except Exception as e:
                         log.error(f"Exception in process_file: {e}")
                         log.exception(e)

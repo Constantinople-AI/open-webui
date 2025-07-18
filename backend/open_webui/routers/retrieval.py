@@ -1258,7 +1258,7 @@ def save_docs_to_vector_db(
             collection_name=collection_name,
             items=items,
         )
-        
+
         embed_duration = time.time() - embed_start_time
 
         return {"success": True, "embed_duration": embed_duration}
