@@ -4,6 +4,7 @@ import mimetypes
 import os
 import shutil
 import asyncio
+import time
 
 
 import uuid
@@ -1105,7 +1106,7 @@ def save_docs_to_vector_db(
     split: bool = True,
     add: bool = False,
     user=None,
-) -> bool:
+) -> dict:
     def _get_docs_info(docs: list[Document]) -> str:
         docs_info = set()
 
@@ -1203,9 +1204,10 @@ def save_docs_to_vector_db(
                 log.info(
                     f"collection {collection_name} already exists, overwrite is False and add is False"
                 )
-                return True
+                return {"success": True, "embed_duration": 0.0}
 
         log.info(f"adding to collection {collection_name}")
+        embed_start_time = time.time()
         embedding_function = get_embedding_function(
             request.app.state.config.RAG_EMBEDDING_ENGINE,
             request.app.state.config.RAG_EMBEDDING_MODEL,
@@ -1256,8 +1258,10 @@ def save_docs_to_vector_db(
             collection_name=collection_name,
             items=items,
         )
+        
+        embed_duration = time.time() - embed_start_time
 
-        return True
+        return {"success": True, "embed_duration": embed_duration}
     except Exception as e:
         log.exception(e)
         raise e
@@ -1429,7 +1433,7 @@ def process_file(
                     user=user,
                 )
 
-                if result:
+                if result["success"]:
                     Files.update_file_metadata_by_id(
                         file.id,
                         {
@@ -1442,6 +1446,7 @@ def process_file(
                         "collection_name": collection_name,
                         "filename": file.filename,
                         "content": text_content,
+                        "embed_duration": result["embed_duration"],
                     }
             except Exception as e:
                 raise e
@@ -1493,11 +1498,12 @@ def process_text(
     log.debug(f"text_content: {text_content}")
 
     result = save_docs_to_vector_db(request, docs, collection_name, user=user)
-    if result:
+    if result["success"]:
         return {
             "status": True,
             "collection_name": collection_name,
             "content": text_content,
+            "embed_duration": result["embed_duration"],
         }
     else:
         raise HTTPException(

@@ -73,6 +73,7 @@ class FileModelResponse(BaseModel):
     filename: str
     data: Optional[dict] = None
     meta: FileMeta
+    embed_duration: Optional[float] = None
 
     created_at: int  # timestamp in epoch
     updated_at: int  # timestamp in epoch
