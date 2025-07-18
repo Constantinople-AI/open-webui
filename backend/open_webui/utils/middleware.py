@@ -903,11 +903,7 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
         # Extract default mode from PersistentConfig if available
         default_mode_config = request.app.state.config.DEFAULT_FUNCTION_CALLING
-        default_mode = (
-            getattr(default_mode_config, "value", default_mode_config)
-            if default_mode_config
-            else ""
-        )
+        default_mode = getattr(default_mode_config, "value", "")
 
         if function_calling_mode is None:
             # Use default mode if valid, otherwise fallback to compatible
