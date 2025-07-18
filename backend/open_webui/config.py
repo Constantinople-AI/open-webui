@@ -1653,6 +1653,12 @@ The format for the JSON response is strictly:
   ]
 }"""
 
+# Function calling default mode configuration
+DEFAULT_FUNCTION_CALLING = PersistentConfig(
+    "DEFAULT_FUNCTION_CALLING",
+    "task.default_function_calling",
+    os.environ.get("DEFAULT_FUNCTION_CALLING", ""),  # Empty string means null/default
+)
 
 DEFAULT_EMOJI_GENERATION_PROMPT_TEMPLATE = """Your task is to reflect the speaker's likely facial expression through a fitting emoji. Interpret emotions from the message and reflect their facial expression using fitting, diverse emojis (e.g., 😊, 😢, 😡, 😱).
 

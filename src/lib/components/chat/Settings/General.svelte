@@ -42,7 +42,7 @@
 	let params = {
 		// Advanced
 		stream_response: null,
-		function_calling: null,
+		function_calling: null as string | null,
 		seed: null,
 		temperature: null,
 		reasoning_effort: null,
